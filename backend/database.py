@@ -13,16 +13,11 @@ def normalize_database_url(url: str) -> str:
     if not url:
         return "sqlite:///./indra_sovereign.db"
     
-    # Check if driver is already specified
+    # Prioritize pure-Python pg8000 driver for serverless PostgreSQL
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+pg8000://", 1)
     elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
-        # Test if psycopg2 is available; if not, use pg8000 for pure-Python Vercel serverless
-        try:
-            import psycopg2
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
-        except ImportError:
-            url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+        url = url.replace("postgresql://", "postgresql+pg8000://", 1)
             
     return url
 

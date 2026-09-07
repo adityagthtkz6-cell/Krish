@@ -2,7 +2,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)
 
 class Settings:
     # Environment
@@ -16,8 +16,10 @@ class Settings:
         if origin.strip()
     ]
     
-    # Database (PostgreSQL / SQLite fallback)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./indra_sovereign.db")
+    # Database (PostgreSQL / SQLite fallback - dynamic resolution from environment)
+    @property
+    def DATABASE_URL(self) -> str:
+        return os.getenv("DATABASE_URL", "sqlite:///./indra_sovereign.db")
     
     # Vector Database (Qdrant / Chroma / In-memory fallback)
     QDRANT_URL: str = os.getenv("QDRANT_URL", "")
