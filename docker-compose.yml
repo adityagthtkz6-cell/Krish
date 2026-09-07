@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  indra-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: indra-sovereign-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - LOCAL_LLM_MODEL=deepseek-r1:14b
+      - LOCAL_VLM_MODEL=llama3.2-vision:11b
+    volumes:
+      - ./backend/data:/app/data
+    restart: unless-stopped
+    networks:
+      - indra-airgap-net
+
+  indra-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: indra-sovereign-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - indra-backend
+    restart: unless-stopped
+    networks:
+      - indra-airgap-net
+
+networks:
+  indra-airgap-net:
+    driver: bridge
+    internal: false
