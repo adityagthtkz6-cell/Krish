@@ -84,11 +84,11 @@ In this mode, a single Vercel deployment serves the React SPA on `/` and routes 
 ### Supabase PostgreSQL Setup
 1. Create a project at [supabase.com](https://supabase.com).
 2. Go to **Project Settings → Database → Connection string → URI**.
-3. Copy the URI and set it in your backend environment variables:
+3. Copy the URI and set it in your backend / Vercel environment variables:
    ```env
-   DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
    ```
-   *(Or use Transaction Pooler URL on port 6543 if preferred for serverless environments)*
+   *(Using the Supabase Transaction Pooler on port 6543 is optimized for Vercel serverless functions with connection pooling)*
 4. The backend automatically creates all 11 production tables, indexes, and initial RBAC roles/agents on first boot (`init_db()`).
 5. **Zero-Crash Fallback:** If `DATABASE_URL` is omitted, unreachable, or in demo mode, INDRA automatically falls back to the embedded sovereign SQLite database without downtime.
 
