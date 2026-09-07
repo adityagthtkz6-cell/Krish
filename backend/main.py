@@ -1,6 +1,6 @@
 import logging
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import init_db, check_db_health
@@ -87,3 +87,8 @@ def api_health():
         "database": db_health.get("engine", "embedded"),
         "db_connected": db_health.get("connected", True)
     }
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
