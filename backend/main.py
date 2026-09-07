@@ -1,6 +1,8 @@
 import logging
 import os
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import init_db, check_db_health
@@ -42,6 +44,20 @@ else:
         allow_headers=["*"],
     )
 
+# Static & Frontend Distribution Path Resolution
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+dist_candidates = [
+    os.path.abspath(os.path.join(current_file_dir, "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "dist")),
+    os.path.abspath(os.path.join(current_file_dir, "dist"))
+]
+DIST_DIR = next((d for d in dist_candidates if os.path.exists(d)), None)
+INDEX_HTML = os.path.join(DIST_DIR, "index.html") if DIST_DIR and os.path.exists(os.path.join(DIST_DIR, "index.html")) else None
+
+if DIST_DIR and os.path.exists(os.path.join(DIST_DIR, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
+
 app.include_router(documents.router)
 app.include_router(rag.router)
 app.include_router(vision.router)
@@ -60,17 +76,6 @@ def startup_event():
         logger.warning(f"Database initialization notice: {e}")
     demo_service.load_demo_workspace()
 
-@app.get("/")
-def root():
-    return {
-        "app": "INDRA – Sovereign Industrial AI",
-        "version": "2.0.0",
-        "status": "OPERATIONAL",
-        "environment": settings.ENVIRONMENT,
-        "security_policy": "AIR-GAPPED / 0 EXTERNAL EGRESS / LOCAL INFERENCE CAPABLE",
-        "problem_statement": "SIH 2026 - 26117"
-    }
-
 # Standard production health check endpoint
 @app.get("/health")
 def health():
@@ -88,7 +93,35 @@ def api_health():
         "db_connected": db_health.get("connected", True)
     }
 
+@app.get("/api/info")
+@app.get("/api")
+def api_info():
+    return {
+        "app": "INDRA – Sovereign Industrial AI",
+        "version": "2.0.0",
+        "status": "OPERATIONAL",
+        "environment": settings.ENVIRONMENT,
+        "security_policy": "AIR-GAPPED / 0 EXTERNAL EGRESS / LOCAL INFERENCE CAPABLE",
+        "problem_statement": "SIH 2026 - 26117"
+    }
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
+
+# Frontend SPA Root & Catch-all handler
+@app.get("/")
+def serve_root():
+    if INDEX_HTML and os.path.exists(INDEX_HTML):
+        return FileResponse(INDEX_HTML)
+    return api_info()
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_spa_catchall(full_path: str):
+    if full_path.startswith("api") or full_path.startswith("health") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    if INDEX_HTML and os.path.exists(INDEX_HTML):
+        return FileResponse(INDEX_HTML)
+    raise HTTPException(status_code=404, detail="Not Found")
+
 
