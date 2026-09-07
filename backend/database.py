@@ -9,27 +9,37 @@ from models.db_models import Base, Role, User, Agent, ModelRegistry
 logger = logging.getLogger("indra.database")
 
 def normalize_database_url(url: str) -> str:
-    """Ensure Supabase/Heroku postgres:// URLs are compatible with SQLAlchemy 2.0."""
+    """Ensure Supabase/Heroku postgres:// URLs are compatible with SQLAlchemy 2.0 and pure-Python pg8000."""
     if not url:
         return "sqlite:///./indra_sovereign.db"
+    
+    # Check if driver is already specified
     if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        # Test if psycopg2 is available; if not, use pg8000 for pure-Python Vercel serverless
+        try:
+            import psycopg2
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        except ImportError:
+            url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+            
     return url
 
 DATABASE_URL = normalize_database_url(settings.DATABASE_URL)
 IS_POSTGRES = "postgresql" in DATABASE_URL
 
-# Engine configuration
+# Engine configuration with serverless-safe parameters
 try:
     if IS_POSTGRES:
         engine = create_engine(
             DATABASE_URL,
-            pool_size=10,
-            max_overflow=20,
+            pool_size=5,
+            max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=300
         )
-        logger.info("Configured PostgreSQL engine for Supabase/Cloud deployment.")
+        logger.info("Configured PostgreSQL engine for Supabase/Vercel deployment.")
     else:
         engine = create_engine(
             DATABASE_URL,
@@ -50,8 +60,13 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+_db_initialized = False
+
 def init_db():
     """Create all tables and seed initial roles and metadata safely on Supabase / PostgreSQL."""
+    global _db_initialized
+    if _db_initialized:
+        return
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables verified/created successfully.")
@@ -129,6 +144,7 @@ def init_db():
                 db.commit()
                 logger.info("Sovereign Model Registry seeded.")
 
+            _db_initialized = True
         except Exception as seed_err:
             db.rollback()
             logger.warning(f"DB Seeding notice: {seed_err}")
@@ -166,9 +182,4 @@ class DBManager:
 
 db_manager = DBManager()
 
-# Initialize tables immediately upon module load
-try:
-    init_db()
-except Exception as e:
-    logger.warning(f"Initial DB bootstrap notice: {e}")
 

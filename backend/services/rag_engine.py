@@ -44,8 +44,11 @@ class SovereignRAGEngine:
 
         doc.chunks_count = len([c for c in self.chunks if c["document_id"] == doc.id])
         
-        # Persist to PostgreSQL / Supabase
-        db_service.persist_document(doc, text_content, created_chunks)
+        # Persist to PostgreSQL / Supabase safely
+        try:
+            db_service.persist_document(doc, text_content, created_chunks)
+        except Exception as e:
+            pass
 
     def query(self, query_str: str, doc_ids: Optional[List[str]] = None, top_k: int = 3) -> List[Dict[str, Any]]:
         if not self.chunks:

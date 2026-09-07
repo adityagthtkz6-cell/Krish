@@ -4,5 +4,6 @@ pydantic>=2.6.0
 python-multipart>=0.0.9
 aiofiles>=23.2.1
 sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
+pg8000>=1.30.0
+scramp>=1.4.0
 python-dotenv>=1.0.0
